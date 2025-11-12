@@ -20,8 +20,10 @@ class AtechRefurbConsentSaveModuleFrontController extends ModuleFrontController
                 return;
             }
             
-        // NOTA: NO requerimos login - permitimos guardar por carrito
-        // El login se validará más tarde en el checkout
+        // IMPORTANTE: NO requerimos login para permitir GUEST CHECKOUT
+        // El consentimiento se guarda asociado al carrito (cart_id)
+        // Funciona tanto para clientes registrados como invitados
+        // La validación del cliente se hace al finalizar el pedido (hookActionValidateOrder)
             
             // Validar carrito
             if (!isset($this->context->cart) || !Validate::isLoadedObject($this->context->cart)) {

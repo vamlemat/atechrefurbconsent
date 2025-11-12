@@ -1,8 +1,18 @@
 
+/**
+ * Módulo de consentimiento para productos reacondicionados
+ * Compatible con:
+ * - Clientes registrados (con login)
+ * - Clientes invitados (guest checkout sin login)
+ * - Checkouts de una página (OPC)
+ * - Checkouts estándar de PrestaShop
+ * 
+ * El consentimiento se guarda asociado al carrito (cart_id), NO al cliente
+ */
 (function() {
   'use strict';
   
-  console.log('[ARC] Módulo de consentimiento cargado');
+  console.log('[ARC] Módulo de consentimiento cargado (compatible con guest checkout)');
   
   var cb = null;
   var confirmBtn = null;
