@@ -1,4 +1,3 @@
-
 <?php
 if (!defined('_PS_VERSION_')) { exit; }
 
@@ -152,7 +151,20 @@ class AtechRefurbConsent extends Module
         $cart = $params['cart'];
         if (!$this->cartHasAnyCategory($cart, $ids)) { return; }
 
-        if (!$this->getConsent((int)$cart->id)) {
+        $cartId = (int)$cart->id;
+        $hasConsent = $this->getConsent($cartId);
+        
+        // Log para debugging
+        PrestaShopLogger::addLog(
+            'ARC Consent validation: Cart='.$cartId.' HasConsent='.($hasConsent ? 'YES' : 'NO'),
+            $hasConsent ? 1 : 3,
+            null,
+            'Cart',
+            $cartId,
+            true
+        );
+        
+        if (!$hasConsent) {
             throw new PrestaShopException($this->l('Debes aceptar la condición para productos seleccionados antes de finalizar la compra.'));
         }
     }
