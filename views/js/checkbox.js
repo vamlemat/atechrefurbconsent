@@ -86,17 +86,26 @@
             toggleButton();
           } else {
             console.error('[ARC] ✗ Error al guardar consentimiento:', resp);
-            alert('Error al guardar el consentimiento. Por favor, inténtelo de nuevo.');
+            var errorMsg = 'Error al guardar el consentimiento';
+            if (resp.error) {
+              errorMsg += ': ' + resp.error;
+              console.error('[ARC] Detalles del error:', resp);
+            }
+            alert(errorMsg + '\n\nAbre la consola (F12) para ver más detalles.');
             cb.checked = false;
             toggleButton();
           }
         } catch (e) {
-          console.error('[ARC] ✗ Error parsing response:', e, xhr.responseText);
+          console.error('[ARC] ✗ Error parsing response:', e);
+          console.error('[ARC] Respuesta del servidor:', xhr.responseText);
+          alert('Error al procesar la respuesta del servidor.\n\nAbre la consola (F12) para ver más detalles.');
           cb.checked = false;
           toggleButton();
         }
       } else {
         console.error('[ARC] ✗ HTTP Error:', xhr.status);
+        console.error('[ARC] Respuesta:', xhr.responseText);
+        alert('Error HTTP ' + xhr.status + '.\n\nAbre la consola (F12) para ver más detalles.');
         cb.checked = false;
         toggleButton();
       }
