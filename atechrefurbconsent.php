@@ -6,7 +6,7 @@ class AtechRefurbConsent extends Module
     public function __construct()
     {
         $this->name = 'atechrefurbconsent';
-        $this->version = '1.3.1';
+        $this->version = '1.3.2';
         $this->author = 'Atech';
         $this->tab = 'checkout';
         $this->need_instance = 0;
@@ -15,6 +15,30 @@ class AtechRefurbConsent extends Module
         parent::__construct();
         $this->displayName = $this->l('Consentimiento para Reacondicionados');
         $this->description = $this->l('Muestra un checkbox obligatorio en checkout cuando el carrito tiene productos de categorías seleccionadas. Compatible con guest checkout (clientes invitados).');
+        
+        // Verificar que la tabla existe (crear si no existe)
+        $this->checkAndCreateTable();
+    }
+    
+    /**
+     * Verifica que la tabla de consentimientos existe y la crea si no
+     */
+    private function checkAndCreateTable()
+    {
+        $tableName = _DB_PREFIX_.'arc_consent';
+        $tableExists = Db::getInstance()->executeS('SHOW TABLES LIKE "'.$tableName.'"');
+        
+        if (empty($tableExists)) {
+            PrestaShopLogger::addLog(
+                'ARC: Tabla '.$tableName.' no existe. Creándola...',
+                2,
+                null,
+                'Module',
+                0,
+                true
+            );
+            $this->installSql();
+        }
     }
 
     public function install()
@@ -248,21 +272,68 @@ class AtechRefurbConsent extends Module
 
     private function getConsent($id_cart)
     {
-        $sql = 'SELECT accepted FROM `'._DB_PREFIX_.'arc_consent` WHERE id_cart='.(int)$id_cart;
-        return (bool)Db::getInstance()->getValue($sql);
+        $id_cart = (int)$id_cart;
+        $sql = 'SELECT accepted FROM `'._DB_PREFIX_.'arc_consent` WHERE id_cart='.$id_cart;
+        $result = (bool)Db::getInstance()->getValue($sql);
+        
+        // Log para debugging
+        PrestaShopLogger::addLog(
+            'ARC getConsent: Cart='.$id_cart.' Result='.($result ? 'TRUE' : 'FALSE').' SQL='.$sql,
+            1,
+            null,
+            'Cart',
+            $id_cart,
+            true
+        );
+        
+        return $result;
     }
 
     public static function setConsent($id_cart, $accepted)
     {
+        $id_cart = (int)$id_cart;
+        $accepted = (int)$accepted;
         $db = Db::getInstance();
-        $exists = (bool)$db->getValue('SELECT id_arc FROM `'._DB_PREFIX_.'arc_consent` WHERE id_cart='.(int)$id_cart);
-        if ($exists) {
-            $sql = 'UPDATE `'._DB_PREFIX_.'arc_consent` SET accepted='.(int)$accepted.' WHERE id_cart='.(int)$id_cart;
+        
+        // Verificar si ya existe
+        $checkSql = 'SELECT id_arc, accepted FROM `'._DB_PREFIX_.'arc_consent` WHERE id_cart='.$id_cart;
+        $existing = $db->getRow($checkSql);
+        
+        PrestaShopLogger::addLog(
+            'ARC setConsent START: Cart='.$id_cart.' Accepted='.$accepted.' Existing='.json_encode($existing),
+            1,
+            null,
+            'Cart',
+            $id_cart,
+            true
+        );
+        
+        if ($existing) {
+            // UPDATE
+            $sql = 'UPDATE `'._DB_PREFIX_.'arc_consent` 
+                    SET accepted='.$accepted.', date_add=NOW() 
+                    WHERE id_cart='.$id_cart;
         } else {
+            // INSERT
             $sql = 'INSERT INTO `'._DB_PREFIX_.'arc_consent` (id_cart, accepted, date_add)
-                    VALUES ('.(int)$id_cart.', '.(int)$accepted.", '".pSQL(date('Y-m-d H:i:s'))."')";
+                    VALUES ('.$id_cart.', '.$accepted.', NOW())';
         }
-        return $db->execute($sql);
+        
+        $result = $db->execute($sql);
+        
+        // Verificar que se guardó
+        $verify = $db->getRow('SELECT * FROM `'._DB_PREFIX_.'arc_consent` WHERE id_cart='.$id_cart);
+        
+        PrestaShopLogger::addLog(
+            'ARC setConsent END: Cart='.$id_cart.' SQLResult='.($result ? 'OK' : 'FAIL').' Verify='.json_encode($verify).' SQL='.$sql,
+            $result ? 1 : 3,
+            null,
+            'Cart',
+            $id_cart,
+            true
+        );
+        
+        return $result;
     }
 
 /** AFTER ORDER CREATED: add private message with consent text */
