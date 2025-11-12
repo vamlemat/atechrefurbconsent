@@ -25,7 +25,6 @@
       '#payment-confirmation button[type="submit"]',
       'button[type="submit"][name="confirmDeliveryOption"]',
       '.payment-confirmation button',
-      'button.btn-primary[type="submit"]',
       '#js-delivery button[type="submit"]',
       'button[name="confirm-addresses"]',
       '.js-payment-confirmation button'
@@ -40,16 +39,48 @@
       }
     }
     
-    console.warn('[ARC] Botón de confirmación NO encontrado. Intentando buscar todos los botones submit...');
+    console.warn('[ARC] Botón de confirmación NO encontrado con selectores específicos.');
+    console.log('[ARC] Intentando buscar botones submit, excluyendo login...');
+    
     var allSubmitBtns = document.querySelectorAll('button[type="submit"]');
     console.log('[ARC] Botones submit encontrados:', allSubmitBtns.length, allSubmitBtns);
     
-    if (allSubmitBtns.length > 0) {
-      confirmBtn = allSubmitBtns[allSubmitBtns.length - 1]; // Usar el último
-      console.log('[ARC] Usando el último botón submit encontrado:', confirmBtn);
-      return true;
+    // Filtrar botones de login, búsqueda, etc.
+    var excludeIds = ['submit-login', 'submit_search', 'submitNewsletter'];
+    var excludeSelectors = [
+      '#login-form button',
+      '#customer-form button',
+      '.user-login button',
+      '.login-form button'
+    ];
+    
+    for (var i = allSubmitBtns.length - 1; i >= 0; i--) {
+      var btn = allSubmitBtns[i];
+      var isExcluded = false;
+      
+      // Verificar ID
+      if (btn.id && excludeIds.indexOf(btn.id) !== -1) {
+        console.log('[ARC] Botón excluido por ID:', btn.id);
+        continue;
+      }
+      
+      // Verificar si coincide con selectores de exclusión
+      for (var j = 0; j < excludeSelectors.length; j++) {
+        if (btn.matches && btn.matches(excludeSelectors[j])) {
+          console.log('[ARC] Botón excluido por selector:', excludeSelectors[j]);
+          isExcluded = true;
+          break;
+        }
+      }
+      
+      if (!isExcluded && btn.offsetParent !== null) {
+        confirmBtn = btn;
+        console.log('[ARC] Botón submit válido encontrado:', btn);
+        return true;
+      }
     }
     
+    console.warn('[ARC] No se encontró ningún botón submit válido');
     return false;
   }
   

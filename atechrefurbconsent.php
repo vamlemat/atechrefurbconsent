@@ -6,7 +6,7 @@ class AtechRefurbConsent extends Module
     public function __construct()
     {
         $this->name = 'atechrefurbconsent';
-        $this->version = '1.2.0';
+        $this->version = '1.3.0';
         $this->author = 'Atech';
         $this->tab = 'checkout';
         $this->need_instance = 0;
@@ -22,9 +22,10 @@ class AtechRefurbConsent extends Module
         return parent::install()
             && $this->installSql()
             && $this->registerHook('displayCheckoutSummaryTop')
+            && $this->registerHook('displayPaymentTop')
             && $this->registerHook('actionFrontControllerSetMedia')
             && $this->registerHook('actionValidateOrder')
-                && $this->registerHook('actionObjectOrderAddAfter')
+            && $this->registerHook('actionObjectOrderAddAfter')
             && Configuration::updateValue('ARC_CATEGORY_IDS', '19')
             && Configuration::updateValue('ARC_CHECK_TEXT', 'ACEPTO QUE LOS PRODUCTOS REACONDICIONADOS NO TIENEN DEVOLUCIÓN NI CAMBIO. LOS CIRCUITOS ESTÁN PROBADOS. SI NO ACEPTA NO LO COMPRE.');
     }
@@ -138,16 +139,38 @@ class AtechRefurbConsent extends Module
     /** FRONT UI: muestra checkbox si procede */
     public function hookDisplayCheckoutSummaryTop($params)
     {
+        return $this->renderCheckbox();
+    }
+
+    /** FRONT UI: muestra checkbox en paso de pago (después del login) */
+    public function hookDisplayPaymentTop($params)
+    {
+        return $this->renderCheckbox();
+    }
+
+    /** Renderiza el checkbox de consentimiento si es necesario */
+    private function renderCheckbox()
+    {
+        // Verificar que haya categorías configuradas
         $ids = $this->getSelectedCategoryIds();
         if (empty($ids)) { return ''; }
 
+        // Verificar que haya un carrito válido
+        if (!isset($this->context->cart) || !Validate::isLoadedObject($this->context->cart)) {
+            return '';
+        }
+
+        // Verificar que el carrito tenga productos de las categorías
         $needs_consent = $this->cartHasAnyCategory($this->context->cart, $ids);
         if (!$needs_consent) { return ''; }
 
+        // Verificar si ya se aceptó
         $accepted = $this->getConsent((int)$this->context->cart->id);
+        
         $this->context->smarty->assign([
             'arc_text' => Configuration::get('ARC_CHECK_TEXT'),
             'arc_checked' => (bool)$accepted,
+            'arc_customer_logged' => $this->context->customer->isLogged(),
         ]);
         return $this->fetch('module:'.$this->name.'/views/templates/hook/checkout_checkbox.tpl');
     }

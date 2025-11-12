@@ -20,11 +20,8 @@ class AtechRefurbConsentSaveModuleFrontController extends ModuleFrontController
                 return;
             }
             
-            // Validar que el cliente esté logueado
-            if (!$this->context->customer->isLogged()) {
-                $this->jsonError('Customer not logged', ['logged' => false]);
-                return;
-            }
+        // NOTA: NO requerimos login - permitimos guardar por carrito
+        // El login se validará más tarde en el checkout
             
             // Validar carrito
             if (!isset($this->context->cart) || !Validate::isLoadedObject($this->context->cart)) {
