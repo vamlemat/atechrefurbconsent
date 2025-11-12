@@ -1,0 +1,13 @@
+
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>atechrefurbconsent</name>
+    <displayName>Consentimiento para Reacondicionados</displayName>
+    <version>1.1.0</version>
+    <author>Atech</author>
+    <description>Muestra un checkbox obligatorio en checkout cuando el carrito tiene productos de categorías seleccionadas.</description>
+    <tab>checkout</tab>
+    <confirmUninstall></confirmUninstall>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+</module>
