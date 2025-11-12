@@ -122,6 +122,16 @@ class AtechRefurbConsent extends Module
                 'modules/'.$this->name.'/views/js/checkbox.js',
                 ['position' => 'bottom', 'priority' => 150]
             );
+            
+            // Log para verificar que se carga el JS
+            PrestaShopLogger::addLog(
+                'ARC: JS cargado en controlador: '.Dispatcher::getInstance()->getController(),
+                1,
+                null,
+                'Controller',
+                0,
+                true
+            );
         }
     }
 
@@ -172,7 +182,15 @@ class AtechRefurbConsent extends Module
     /*** ====== HELPERS ====== ***/
     private function isCheckout()
     {
-        return in_array(Dispatcher::getInstance()->getController(), ['order','checkout']);
+        $controller = Dispatcher::getInstance()->getController();
+        $checkoutControllers = [
+            'order',
+            'checkout',
+            'orderopc',
+            'orderconfirmation',
+            'cart'
+        ];
+        return in_array($controller, $checkoutControllers);
     }
 
     private function getSelectedCategoryIds()
