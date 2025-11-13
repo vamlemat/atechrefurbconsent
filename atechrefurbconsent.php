@@ -10,15 +10,15 @@ class AtechRefurbConsent extends Module
     public function __construct()
     {
         $this->name = 'atechrefurbconsent';
-        $this->version = '1.3.4';
+        $this->version = '2.0.0';
         $this->author = 'Atech';
         $this->tab = 'checkout';
         $this->need_instance = 0;
         $this->bootstrap = true;
 
         parent::__construct();
-        $this->displayName = $this->l('Consentimiento para Reacondicionados');
-        $this->description = $this->l('Muestra un checkbox obligatorio en checkout cuando el carrito tiene productos de categorías seleccionadas. Compatible con guest checkout (clientes invitados).');
+        $this->displayName = $this->l('Consentimiento Obligatorio en Checkout');
+        $this->description = $this->l('Añade un checkbox de consentimiento obligatorio en el checkout para productos de categorías específicas. Texto del consentimiento totalmente personalizable. Compatible con clientes registrados e invitados (guest checkout).');
         
         // Verificar que la tabla existe (crear si no existe)
         $this->checkAndCreateTable();
