@@ -10,7 +10,7 @@ class AtechRefurbConsent extends Module
     public function __construct()
     {
         $this->name = 'atechrefurbconsent';
-        $this->version = '1.3.3';
+        $this->version = '1.3.4';
         $this->author = 'Atech';
         $this->tab = 'checkout';
         $this->need_instance = 0;
@@ -360,68 +360,153 @@ class AtechRefurbConsent extends Module
 /** AFTER ORDER CREATED: add private message with consent text */
 public function hookActionObjectOrderAddAfter($params)
 {
-    if (empty($params['object']) || !($params['object'] instanceof Order)) {
-        return;
-    }
-    /** @var Order $order */
-    $order = $params['object'];
-    $orderId = (int)$order->id;
-    
-    // Protección contra múltiples ejecuciones
-    if (in_array($orderId, self::$processedOrders)) {
+    try {
+        if (empty($params['object']) || !($params['object'] instanceof Order)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: Invalid order object',
+                2,
+                null,
+                'Order',
+                0,
+                true
+            );
+            return;
+        }
+        
+        /** @var Order $order */
+        $order = $params['object'];
+        $orderId = (int)$order->id;
+        $cartId = (int)$order->id_cart;
+        
         PrestaShopLogger::addLog(
-            'ARC hookActionObjectOrderAddAfter: Order='.$orderId.' SKIPPED (already processed)',
+            'ARC hookActionObjectOrderAddAfter START: Order='.$orderId.' Cart='.$cartId,
             1,
             null,
             'Order',
             $orderId,
             true
         );
-        return;
+        
+        // Protección contra múltiples ejecuciones
+        if (in_array($orderId, self::$processedOrders)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: Order='.$orderId.' SKIPPED (already processed)',
+                1,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+            return;
+        }
+        self::$processedOrders[] = $orderId;
+
+        // Only if cart had required categories and consent is present
+        $ids = $this->getSelectedCategoryIds();
+        if (empty($ids)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: No categories configured',
+                1,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+            return;
+        }
+
+        $cart = new Cart($cartId);
+        if (!Validate::isLoadedObject($cart)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: Cart='.$cartId.' not loaded',
+                2,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+            return;
+        }
+        
+        if (!$this->cartHasAnyCategory($cart, $ids)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: Cart='.$cartId.' has no required categories',
+                1,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+            return;
+        }
+
+        if (!$this->getConsent($cartId)) {
+            PrestaShopLogger::addLog(
+                'ARC hookActionObjectOrderAddAfter: Cart='.$cartId.' has no consent',
+                2,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+            return;
+        }
+
+        // Build message text
+        $text = (string)Configuration::get('ARC_CHECK_TEXT');
+        if (trim($text) === '') {
+            $text = 'Consentimiento aceptado para productos de categorías configuradas.';
+        }
+        $full = 'Consentimiento Reacondicionados: ' . $text;
+
+        // Create private message on order
+        $msg = new Message();
+        $msg->id_order = $orderId;
+        $msg->message = $full;
+        $msg->private = 1;
+        $msg->id_employee = 0;
+        $msg->id_customer = (int)$order->id_customer;
+        
+        $result = false;
+        if (method_exists($msg, 'add')) {
+            $result = $msg->add();
+        }
+        
+        if ($result) {
+            PrestaShopLogger::addLog(
+                'ARC: ✓ Mensaje privado añadido correctamente al pedido='.$orderId.' Cart='.$cartId.' MsgID='.$msg->id,
+                1,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+        } else {
+            PrestaShopLogger::addLog(
+                'ARC: ✗ Error al añadir mensaje al pedido='.$orderId.' Cart='.$cartId,
+                3,
+                null,
+                'Order',
+                $orderId,
+                true
+            );
+        }
+
+        // IMPORTANTE: NO borramos el consentimiento aquí
+        // Causa conflictos con múltiples ejecuciones de hooks
+        // Los registros se pueden limpiar manualmente o con un cronjob después de X días
+        // La tabla es pequeña y no afecta el rendimiento
+        
+    } catch (Exception $e) {
+        PrestaShopLogger::addLog(
+            'ARC hookActionObjectOrderAddAfter EXCEPTION: '.$e->getMessage(),
+            4,
+            null,
+            'Order',
+            isset($orderId) ? $orderId : 0,
+            true
+        );
     }
-    self::$processedOrders[] = $orderId;
-
-    // Only if cart had required categories and consent is present
-    $ids = $this->getSelectedCategoryIds();
-    if (empty($ids)) { return; }
-
-    $cart = new Cart((int)$order->id_cart);
-    if (!Validate::isLoadedObject($cart)) { return; }
-    if (!$this->cartHasAnyCategory($cart, $ids)) { return; }
-
-    if (!$this->getConsent((int)$order->id_cart)) { return; }
-
-    // Build message text
-    $text = (string)Configuration::get('ARC_CHECK_TEXT');
-    if (trim($text) === '') {
-        $text = 'Consentimiento aceptado para productos de categorías configuradas.';
-    }
-    $full = 'Consentimiento Reacondicionados: ' . $text;
-
-    // Create private message on order
-    $msg = new Message();
-    $msg->id_order = $orderId;
-    $msg->message = $full;
-    $msg->private = 1;
-    $msg->id_employee = 0;
-    $msg->id_customer = (int)$order->id_customer;
-    if (method_exists($msg, 'add')) {
-        $msg->add();
-    }
-    
-    PrestaShopLogger::addLog(
-        'ARC: Mensaje privado añadido al pedido='.$orderId.' Cart='.$order->id_cart,
-        1,
-        null,
-        'Order',
-        $orderId,
-        true
-    );
-
-    // IMPORTANTE: NO borramos el consentimiento aquí
-    // Causa conflictos con múltiples ejecuciones de hooks
-    // Los registros se pueden limpiar manualmente o con un cronjob después de X días
-    // La tabla es pequeña y no afecta el rendimiento
 }
 
 }
